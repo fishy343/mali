@@ -1,9 +1,12 @@
-import { Bot ,Keyboard ,} from "grammy";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Bot, webhookCallback ,Keyboard } from "grammy";
+
+const token = process.env.BOT_TOKEN;
+if (!token) throw new Error("BOT_TOKEN is unset");
 
 const genAI = new GoogleGenerativeAI("AIzaSyBsosV1Pj7Ok3s_roUXYzgdZD7Duj-Y47E");
 const model = genAI.getGenerativeModel({ model: "gemini-pro"});
-const bot = new Bot("6869032849:AAEjrKZBf85NeGRs7tr8TIAbADMwQcMgfUI");
+const bot = new Bot(token);
 console.log("Bot is up and running!");
 
 
@@ -104,5 +107,4 @@ bot.on("message", async (ctx) => {
     }
 });
 
-bot.start();
-export default bot;
+export default webhookCallback(bot, "http");
