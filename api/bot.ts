@@ -104,5 +104,5 @@ bot.on("message", async (ctx) => {
     }
 });
 
-export default bot;
 bot.start();
+export default bot;
