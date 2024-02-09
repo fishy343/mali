@@ -103,5 +103,6 @@ bot.on("message", async (ctx) => {
         await ctx.reply("Sorry, I encountered an error while processing your request❌. Maybe your prompt is NSFW🔞 or not in a supported language🌐.", { parse_mode: "MarkdownV2" });
     }
 });
-    
-    bot.start();
+
+export default bot;
+bot.start();
