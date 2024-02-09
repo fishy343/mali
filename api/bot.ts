@@ -103,7 +103,7 @@ bot.on("message", async (ctx) => {
         // Stop typing action in case of error
         clearInterval(typingInterval);
         console.error(error);
-        await ctx.reply("Sorry, I encountered an error while processing your request❌. Maybe your prompt is NSFW🔞 or not in a supported language🌐.", { parse_mode: "MarkdownV2" });
+        await ctx.reply("Sorry, I encountered an error while processing your request❌. Maybe your prompt is NSFW🔞 or not in a supported language🌐.");
     }
 });
 
