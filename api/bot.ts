@@ -294,10 +294,10 @@ function escapeMarkdownV2Characters(text) {
 
     // Helper function to process and clear the buffer
     const processBuffer = () => {
-        // Escape Markdown characters, adjusting for MarkdownV2 specifications
-        // This includes escaping special characters and converting **phrase** to *phrase*
+        // Convert bold syntax **phrase** to italic syntax *phrase* and escape special characters
+        // Adjusting for MarkdownV2 specifications, including escaping the dash character
         buffer = buffer.replace(/\*\*([\s\S]+?)\*\*/g, '*$1*') // Convert bold to italic
-                       .replace(/([_\[\]()~`>#+\-=|{}.!])/g, '\\$1'); // Escape special characters
+                       .replace(/([_{}\[\]()~`>#+\-=|\\.^!])/g, '\\$1'); // Escape special characters, including dash
         result += buffer;
         buffer = ''; // Clear the buffer after processing
     };
@@ -325,6 +325,7 @@ function escapeMarkdownV2Characters(text) {
 
     return result;
 }
+
 
 
 export default webhookCallback(bot, "http");
