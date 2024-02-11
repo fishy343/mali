@@ -291,7 +291,7 @@ function escapeMarkdownV2Characters(text: string) {
     text = text.replace(/\*\*(\w+)\*\*/g, '*$1*');
 
     // Then, escape Markdown V2 special characters, excluding * to preserve the change
-    return text.replace(/([_\[\]()~>#+\-=|{}.!])/g, '\\$1');
+    return text.replace(/([_\[\]()~>+\-=|{}.!])/g, '\\$1');
 }
 
 export default webhookCallback(bot, "http");
