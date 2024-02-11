@@ -286,12 +286,45 @@ bot.on("message:text", async (ctx) => {
     }
 });
 
-function escapeMarkdownV2Characters(text: string) {
-    // Replace instances of ** surrounding a word with a single * on each side
-    text = text.replace(/\*\*(\w+)\*\*/g, '*$1*');
+function escapeMarkdownV2Characters(text) {
+    let inCodeBlock = false; // Flag to keep track of whether we're inside a code block
+    let result = ''; // The result string that will be built up
+    let buffer = ''; // A buffer to hold text outside code blocks for processing
+    const codeBlockDelimiter = '```'; // The delimiter for code blocks
 
-    // Then, escape Markdown V2 special characters, excluding * to preserve the change
-    return text.replace(/([_\[\]()~>#+\-=|{}.!])/g, '\\$1');
+    // Helper function to process and clear the buffer
+    const processBuffer = () => {
+        // Replace **word** with *word*
+        buffer = buffer.replace(/\*\*(\w+)\*\*/g, '*$1*');
+        // Escape Markdown characters
+        buffer = buffer.replace(/([_\[\]~>+\-=|{}.!])/g, '\\$1');
+        result += buffer;
+        buffer = ''; // Clear the buffer
+    };
+
+    for (let i = 0; i < text.length; i++) {
+        // Check if we're at the start or end of a code block
+        if (text.substring(i, i + codeBlockDelimiter.length) === codeBlockDelimiter) {
+            if (!inCodeBlock) processBuffer(); // Process the buffer before entering a code block
+            inCodeBlock = !inCodeBlock; // Toggle the inCodeBlock flag
+            i += codeBlockDelimiter.length - 1; // Skip the code block delimiter
+            result += codeBlockDelimiter; // Add the code block delimiter to the result
+            continue;
+        }
+
+        if (!inCodeBlock) {
+            // If we're not in a code block, add characters to the buffer for later processing
+            buffer += text[i];
+        } else {
+            // If we are in a code block, just add the current character to the result directly
+            result += text[i];
+        }
+    }
+
+    if (buffer) processBuffer(); // Process any remaining buffer after the loop
+
+    return result;
 }
+
 
 export default webhookCallback(bot, "http");
