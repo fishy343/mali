@@ -294,15 +294,16 @@ function escapeMarkdownV2Characters(text) {
 
     // Helper function to process and clear the buffer
     const processBuffer = () => {
-        // Replace **word** with *word*
-        buffer = buffer.replace(/\*\*(\w+)\*\*/g, '*$1*');
-        // Escape Markdown characters, including '.', which is not typically escaped in standard Markdown
-        buffer = buffer.replace(/([_\[\]~>+\-=|{}()!.])/g, '\\$1');
-        // Avoid double escaping backslashes
-        buffer = buffer.replace(/\\(\\+)/g, '$1');
-        result += buffer;
-        buffer = ''; // Clear the buffer
-    };
+    // Replace **phrase** with *phrase*, allowing for spaces and special characters within the phrase
+    buffer = buffer.replace(/\*\*([\s\S]+?)\*\*/g, '*$1*');
+    // Escape Markdown characters, including '.', which is not typically escaped in standard Markdown
+    buffer = buffer.replace(/([_\[\]~>+\-=|{}()!.])/g, '\\$1');
+    // Avoid double escaping backslashes
+    buffer = buffer.replace(/\\(\\+)/g, '$1');
+    result += buffer;
+    buffer = ''; // Clear the buffer
+};
+
 
     for (let i = 0; i < text.length; i++) {
         // Check if we're at the start or end of a code block
