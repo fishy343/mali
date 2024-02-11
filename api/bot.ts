@@ -286,26 +286,12 @@ bot.on("message:text", async (ctx) => {
     }
 });
 
-function escapeMarkdownV2Characters(text) {
-    const codeBlockRegex = /```[\s\S]*?```/g;
-    let codeBlocks = [];
-    let placeholder = (i) => `<<code-placeholder-${i}>>`;
-
-    // Step 1: Extract code blocks and replace them with placeholders
-    text = text.replace(codeBlockRegex, (match) => {
-        codeBlocks.push(match);
-        return placeholder(codeBlocks.length - 1);
-    });
-
-    // Step 2: Escape Markdown characters outside of code blocks
-    text = text.replace(/([_\[\]~>+\-=|{}.!])/g, '\\$1');
-
-    // Step 3: Restore code blocks
-    text = text.replace(/<<code-placeholder-(\d+)>>/g, (match, index) => {
-        return codeBlocks[index];
-    });
+function escapeMarkdownV2Characters(text: string) {
+    // Replace instances of ** surrounding a word with a single * on each side
     text = text.replace(/\*\*(\w+)\*\*/g, '*$1*');
 
-    return text;
+    // Then, escape Markdown V2 special characters, excluding * to preserve the change
+    return text.replace(/([_\[\]()~>#+\-=|{}.!])/g, '\\$1');
 }
+
 export default webhookCallback(bot, "http");
