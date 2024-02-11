@@ -287,23 +287,20 @@ bot.on("message:text", async (ctx) => {
 });
 
 function escapeMarkdownV2Characters(text) {
-    let inCodeBlock = false; // Flag to keep track of whether we're inside a code block
+    let inCodeBlock = false; // Flag to track whether we're inside a code block
     let result = ''; // The result string that will be built up
     let buffer = ''; // A buffer to hold text outside code blocks for processing
     const codeBlockDelimiter = '```'; // The delimiter for code blocks
 
     // Helper function to process and clear the buffer
     const processBuffer = () => {
-    // Replace **phrase** with *phrase*, allowing for spaces and special characters within the phrase
-    buffer = buffer.replace(/\*\*([\s\S]+?)\*\*/g, '*$1*');
-    // Escape Markdown characters, including '.', which is not typically escaped in standard Markdown
-    buffer = buffer.replace(/([_\[\]~>+\-=|{}()!.])/g, '\\$1');
-    // Avoid double escaping backslashes
-    buffer = buffer.replace(/\\(\\+)/g, '$1');
-    result += buffer;
-    buffer = ''; // Clear the buffer
-};
-
+        // Escape Markdown characters, adjusting for MarkdownV2 specifications
+        // This includes escaping special characters and converting **phrase** to *phrase*
+        buffer = buffer.replace(/\*\*([\s\S]+?)\*\*/g, '*$1*') // Convert bold to italic
+                       .replace(/([_\[\]()~`>#+\-=|{}.!])/g, '\\$1'); // Escape special characters
+        result += buffer;
+        buffer = ''; // Clear the buffer after processing
+    };
 
     for (let i = 0; i < text.length; i++) {
         // Check if we're at the start or end of a code block
