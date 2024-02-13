@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Bot, webhookCallback  ,Keyboard , Context  } from "grammy";
+import { Bot, webhookCallback, session, SessionFlavor   ,Keyboard , Context  } from "grammy";
 import { FileFlavor, hydrateFiles } from "@grammyjs/files";
 import fs from "fs"; 
 import crypto from "crypto";
@@ -20,15 +20,17 @@ const bot = new Bot<MyContext>(token);
 bot.api.config.use(hydrateFiles(bot.token));
 
 console.log("Bot is up and running!");
-type MyContext = FileFlavor<Context>;
+interface SessionData {
+    isAdminBroadcasting?: boolean;
+  }
+type MyContext = FileFlavor<Context> & Context & SessionFlavor<SessionData>;
 
-
+const ADMIN_ID = 727710444;
 const start_keyboard = ["🔃 Reset Chat", "🌐 Languages", "📚 About", "📞 Contact"];
-const buttonRows = [
-    [Keyboard.text(start_keyboard[0])], // Reset Chat in its own row at the top
-    [Keyboard.text(start_keyboard[1]), Keyboard.text(start_keyboard[2]), Keyboard.text(start_keyboard[3])] // Other buttons in the second row
-];
-const keyboard = Keyboard.from(buttonRows).resized();
+bot.use(session({
+    initial: (): SessionData => ({})
+}));
+
 // start
 bot.command("start", async (ctx) => {
     if (!ctx.from) {
@@ -36,46 +38,60 @@ bot.command("start", async (ctx) => {
         return;
     }
 
-    const userId = ctx.from.id; // Use ctx.from.id directly
+    const userId = ctx.from.id;
     const username = ctx.from.username || null;
+    let buttonRows = [
+        [Keyboard.text(start_keyboard[0])], // Reset Chat in its own row at the top
+        [Keyboard.text(start_keyboard[1]), Keyboard.text(start_keyboard[2]), Keyboard.text(start_keyboard[3])] // Other buttons in the second row
+    ];
 
-    // Attempt to retrieve the user
-    const { data: users, error: selectError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('user_id', userId);
-
-    // Check if 'users' is not null and then if it's empty
-    if (users && users.length === 0 && !selectError) {
-        // If no user exists and no error, try to insert the new user
-        const { error: insertError } = await supabase
-            .from('users')
-            .insert([
-                { user_id: userId, username: username }
-            ]);
-
-        if (insertError) {
-            console.error('Error inserting new user:', insertError);
-            await ctx.reply("There was an issue registering you❌. Please try again later. We might be updating the Bot🤖");
-            return;
-        }
-    } else if (selectError) {
-        // If there was an error querying the user
-        console.error('Error checking user existence:', selectError);
-        await ctx.reply("There was an issue accessing your information. Please try again later. We might be updating the Bot🤖");
-        return;
+    // If the user is the admin, add an "Admin🔒" button
+    if (userId === ADMIN_ID) {
+        buttonRows.push([Keyboard.text("Admin🔒")]); // Adding Admin button in its own row
     }
 
-    const welcomeMessage = `🤖 Welcome to *Mali*, your personal AI Assistant powered by Google's *Gemini Pro*\\!\n\n` +
-        `🚀I excel in coding and writing tasks\\.\n\n` +
-        `🌐Explore *Supported Languages* for customization\\.\n\n` +
-        `🔄 *memory of past conversations*\\.\n\n` +
-        `🖼️ *Send me an image and ask anything*\\! I can provide insights based on images too\\.\n\n` +
-        `Ready\\? Ask me anything\\!`;
+    const keyboard = Keyboard.from(buttonRows).resized();
 
-    await ctx.reply(welcomeMessage, {
-        parse_mode: "MarkdownV2",reply_markup: keyboard,
-    });
+    try {
+        const { data: users, error: selectError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('user_id', userId);
+
+        if (selectError) {
+            throw selectError;
+        }
+
+        if (users && users.length === 0) {
+            // User does not exist, insert new user
+            const { error: insertError } = await supabase
+                .from('users')
+                .insert([{ user_id: userId, username: username }]);
+
+            if (insertError) {
+                throw insertError;
+            }
+
+            const welcomeMessage = `🤖 Welcome to *Mali*, your personal AI Assistant powered by Google's *Gemini Pro*\\!\n\n` +
+             `🚀I excel in coding and writing tasks\\.\n\n` +
+             `🌐Explore *Supported Languages* for customization\\.\n\n` +
+             `🔄 *memory of past conversations*\\.\n\n` +
+             `🖼️ *Send me an image and ask anything*\\! I can provide insights based on images too\\.\n\n` +
+             `Ready\\? Ask me anything\\!`;
+
+            await ctx.reply(welcomeMessage, {
+               parse_mode: "MarkdownV2",reply_markup: keyboard,
+            });
+
+        } else {
+            // User exists, send welcome back message
+            await ctx.reply("Welcome back!🙂 Ready to continue where we left off?🚀", {reply_markup: keyboard,
+            });
+        }
+    } catch (error) {
+        console.error('Database operation failed:', error);
+        await ctx.reply("There was an issue processing your request❌. Please try again later. We might be updating the Bot🤖");
+    }
 });
 
 bot.command("reset", async (ctx) => {
@@ -100,6 +116,20 @@ bot.command("reset", async (ctx) => {
     }
 });
 
+
+bot.command("help", async (ctx) => {
+    const helpMessage = `🤖 Welcome to Mali, your personal AI Assistant powered by Google's Gemini Pro!\n\n` +
+                        `🚀I excel in coding and writing tasks.\n\n` +
+                        `🌐Explore Supported Languages for customization.\n\n` +
+                        `🔄 I remember our past conversations, giving you a seamless experience. If you wish to start over, you can use the "🔃 Reset Chat" option.\n\n` +
+                        `🖼️ Send me an image and ask anything! I can provide insights based on images too.\n\n` +
+                        `Ready? Ask me anything!`;
+
+    await ctx.reply(helpMessage, {
+    });
+});
+
+
 bot.hears("🔃 Reset Chat", async (ctx) => {
     if (!ctx.from) {
         await ctx.reply("Unable to perform operation.");
@@ -119,6 +149,9 @@ bot.hears("🔃 Reset Chat", async (ctx) => {
         await ctx.reply("Sorry, there was an error clearing your chat history❌. Please try again.🤖");
     }
 });
+
+
+
 
 bot.hears("📚 About", async (ctx) => {
     const aboutMessage = "🚧 *About Mali v1\\.2* 🚧\n\n" +
@@ -154,6 +187,57 @@ bot.hears("📞 Contact", async (ctx) => {
 });
 
 
+bot.hears("Admin🔒", async (ctx) => {
+    if (!ctx.from) {
+        await ctx.reply("There was an issue recognizing your command❌. Please try again later.");
+        return;
+    }
+    const userId = ctx.from.id;
+
+    if (userId === ADMIN_ID) {
+        // Create an admin-specific keyboard
+        const adminKeyboard = new Keyboard()
+            .text("📩Broadcast Message") // Button for broadcasting messages
+            .row()
+            .text("🔙Return") 
+            .row()
+
+
+        await ctx.reply("🔒Admin Panel🔒", {
+            reply_markup: {
+                keyboard: adminKeyboard.build(),
+                resize_keyboard: true,
+                one_time_keyboard: true,
+            },
+        });
+    } else {
+        await ctx.reply("You are not authorized to access this command.");
+    }
+});
+
+bot.hears("📩Broadcast Message", async (ctx) => {
+    if (ctx.from?.id === ADMIN_ID) {
+      ctx.session.isAdminBroadcasting = true;
+      await ctx.reply("Please enter the message you would like to broadcast:");
+    }
+  });
+
+
+bot.hears("🔙Return", async (ctx) => {
+    let buttonRows = [
+        [Keyboard.text(start_keyboard[0])], // Reset Chat in its own row at the top
+        [Keyboard.text(start_keyboard[1]), Keyboard.text(start_keyboard[2]), Keyboard.text(start_keyboard[3])] // Other buttons in the second row
+    ];
+
+    if (ctx.from?.id === ADMIN_ID) {
+        buttonRows.push([Keyboard.text("Admin🔒")]); // Adding Admin button in its own row
+    }
+    const keyboard = Keyboard.from(buttonRows).resized();
+    // Done
+    await ctx.reply("Done✅", {reply_markup: keyboard,})
+});
+
+
 // image messages
 bot.on('message:photo', async (ctx) => {
     if (!ctx.from) {
@@ -163,7 +247,7 @@ bot.on('message:photo', async (ctx) => {
     const userId = ctx.from.id; // Extract the user ID from the context
     const photo = ctx.message?.photo?.slice(-1)[0];
     if (!photo) return;
-    const prompt = ctx.message?.caption || "An image is provided without any caption. Describing what I see.";
+    const prompt = ctx.message?.caption || "An image is provided. Describing what You see.";
 
     // Fetch the user's chat history from the database
     const { data: user, error: fetchError } = await supabase
@@ -200,9 +284,9 @@ bot.on('message:photo', async (ctx) => {
         const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
         const result = await model.generateContent([prompt, generativePart, ]); 
         const response = await result.response;
-        const text = await response.text();
-        const response_text = escapeMarkdownV2Characters(await response.text());
-        const updatedChatHistory = [...chatHistory, { parts: prompt, role: 'user' }, { parts: text, role: 'model' }];
+        const response_text_original = await response.text();
+        const response_text_markdown = escapeMarkdownV2Characters(await response.text());
+        const updatedChatHistory = [...chatHistory, { parts: prompt, role: 'user' }, { parts: response_text_original, role: 'model' }];
         await supabase
             .from('users')
             .update({ chats: updatedChatHistory })
@@ -210,7 +294,13 @@ bot.on('message:photo', async (ctx) => {
 
         typing = false;
         clearInterval(typingInterval);
-        await ctx.reply(response_text, { parse_mode: "MarkdownV2" });
+        try {
+            await ctx.reply(response_text_markdown, { parse_mode: "MarkdownV2" });
+        } catch (error) {
+            console.error('Error sending MarkdownV2 message:', error);
+            // Fallback: send the original message text without Markdown formatting
+            await ctx.reply(response_text_original);
+        }
     } catch (error) {
         typing = false;
         clearInterval(typingInterval);
@@ -231,14 +321,40 @@ function fileToGenerativePart(path: string, mimeType: string) {
 let typingInterval: NodeJS.Timeout;
 // normal messages
 bot.on("message:text", async (ctx) => {
-    if (["📚 About", "📞 Contact", "🌐 Languages"].includes(ctx.message.text)) {
+    if (["📚 About", "📞 Contact", "🌐 Languages" ,"Admin🔒","📩Broadcast Message","🔙Return" ].includes(ctx.message.text)) {
         return;
     }
     if (!ctx.from) {
         await ctx.reply("Unable to retrieve user information.");
         return;
     }
-
+    if (ctx.session.isAdminBroadcasting) {
+        if (ctx.from?.id === ADMIN_ID) {
+            // Fetch all user IDs from the database
+            const { data, error } = await supabase
+                .from('users')
+                .select('user_id');
+    
+            if (error) {
+                console.error('Failed to retrieve user IDs:', error);
+                await ctx.reply('Failed to execute broadcast due to a database error.');
+                ctx.session.isAdminBroadcasting = false; // Reset the flag
+                return;
+            }
+            const broadcastMessage = ctx.message.text;
+            for (const user of data) {
+                try {
+                    await ctx.api.sendMessage(user.user_id, broadcastMessage);
+                } catch (sendError) {
+                    console.error(`Failed to send message to user ${user.user_id}:`, sendError);
+                }
+            }
+            ctx.session.isAdminBroadcasting = false; // Reset the flag after broadcasting
+            await ctx.reply("Broadcast completed.");
+        }
+        return;
+    }
+    
     const userId = ctx.from.id;
     const messageText = ctx.message.text;
 
@@ -258,7 +374,7 @@ bot.on("message:text", async (ctx) => {
 
         if (fetchError || !user) {
             console.error('Error fetching user chat history:', fetchError);
-            await ctx.reply("Sorry, I encountered an error while retrieving your chat history.");
+            await ctx.reply("Sorry, I encountered an error while retrieving your chat history.", { parse_mode: "MarkdownV2" });
             clearInterval(typingInterval);
             return;
         }
@@ -267,10 +383,11 @@ bot.on("message:text", async (ctx) => {
         const chat = model.startChat({ history: chatHistory });
         const result = await chat.sendMessage(messageText);
         const response = await result.response;
-        const response_text = escapeMarkdownV2Characters(await response.text());
+        const response_text_original = await response.text()
+        const response_text_markdown = escapeMarkdownV2Characters(await response.text());
 
         // Update the user's chat history in the database with the new message and response
-        const updatedChatHistory = [...chatHistory, { parts: messageText, role: 'user' }, { parts: response_text, role: 'model' }];
+        const updatedChatHistory = [...chatHistory, { parts: messageText, role: 'user' }, { parts: response_text_original, role: 'model' }];
         await supabase
             .from('users')
             .update({ chats: updatedChatHistory })
@@ -278,11 +395,17 @@ bot.on("message:text", async (ctx) => {
 
         typing = false;
         clearInterval(typingInterval);
-        await ctx.reply(response_text, { parse_mode: "MarkdownV2" });
+        try {
+            await ctx.reply(response_text_markdown, { parse_mode: "MarkdownV2" });
+        } catch (error) {
+            console.error('Error sending MarkdownV2 message:', error);
+            // Fallback: send the original message text without Markdown formatting
+            await ctx.reply(response_text_original);
+        }
     } catch (error) {
         clearInterval(typingInterval);
         console.error('Error during chat handling:', error);
-        await ctx.reply("Sorry, I encountered an error while processing your request❌. Please try again.",);
+        await ctx.reply("Sorry, I encountered an error while processing your request❌. Please try again.", { parse_mode: "MarkdownV2" });
     }
 });
 
