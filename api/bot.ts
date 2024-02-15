@@ -375,7 +375,7 @@ bot.on("message:text", async (ctx) => {
 
         if (fetchError || !user) {
             console.error('Error fetching user chat history:', fetchError);
-            await ctx.reply("Sorry, I encountered an error while retrieving your chat history.", { parse_mode: "MarkdownV2" });
+            await ctx.reply("Sorry, I encountered an error while retrieving your chat history.");
             clearInterval(typingInterval);
             return;
         }
@@ -406,7 +406,7 @@ bot.on("message:text", async (ctx) => {
     } catch (error) {
         clearInterval(typingInterval);
         console.error('Error during chat handling:', error);
-        await ctx.reply("Sorry, I encountered an error while processing your request❌. Please try again.", { parse_mode: "MarkdownV2" });
+        await ctx.reply("Sorry, I encountered an error while processing your request❌. Please try again.");
     }
 });
 
