@@ -351,6 +351,7 @@ bot.on("message:text", async (ctx) => {
             }
             ctx.session.isAdminBroadcasting = false; // Reset the flag after broadcasting
             await ctx.reply("Broadcast completed.");
+            return;
         }
         return;
     }
